@@ -5,9 +5,9 @@
 # Nexus IQ Server HA configuration
 iq_server:
   # Sonatype official public image
-  imageRegistry: # Container image registry, if not specified the Docker public registry will be used
-  image: "sonatype/nexus-iq-server"
-  tag: "1.186.0"
+  imageRegistry: 843756893034.dkr.ecr.us-east-2.amazonaws.com/sage # Container image registry, if not specified the Docker public registry will be used
+  image: "iq-server"
+  tag: "latest"
   imagePullPolicy: "IfNotPresent"
 
   # We usually recommend not to specify default resources and to leave this as a conscious choice for the user.
@@ -23,8 +23,8 @@ iq_server:
 
   env:
   # Add more environment variables as needed
-  # - name: ENV_VAR_1
-  #   value: value1
+  - name: HDS_URL
+    value: http://web-worker.default.svc.cluster.local:8080
   # - name: ENV_VAR_2
   #   valueFrom:
   #     secretKeyRef:
@@ -84,15 +84,16 @@ iq_server:
     # Storage class for PV/PVC (empty disables dynamic provisioning)
     storageClassName: ""
     # Access mode for PV/PVC (should correspond to the volume type)
+    #TODO: changed to RWO for EBS temporarily
     accessModes:
-      - ReadWriteMany
+      - ReadWriteOnce #ReadWriteMany
     # Volume type
     # Whichever one has all required parameters set will be used
     # If this applies to multiple, then one will be selected in the preference order of csi then nfs
     csi:
-      driver:
-      fsType:
-      volumeHandle:
+      driver: "ebs.csi.aws.com"
+      fsType: ext4
+      volumeHandle: vol-016c741d939363e06
     nfs:
       server:
       path: "/"
@@ -100,7 +101,7 @@ iq_server:
   # The service account to use to run the pods/job
   serviceAccountName: "default"
   # How the service is exposed
-  serviceType: "ClusterIP"
+  serviceType: LoadBalancer #NodePort #"LoadBalancer" #"ClusterIP"
   # Annotations for the application service
   applicationServiceAnnotations:
   # Annotations for the admin service
@@ -109,7 +110,7 @@ iq_server:
   podAnnotations:
 
   # Number of pods to run
-  replicas: 2
+  replicas: 1
   
   # One of these can be set to hold the initial admin password
   initialAdminPassword: "admin123" # Plaintext password
@@ -133,47 +134,172 @@ iq_server:
   # The full text of the config.yml file that will be passed to each Nexus IQ Server
   # Note that log formats must correspond to what the fluentd sidecar configuration is set to recognize
   config:
-    sonatypeWork: "/sonatype-work/clm-server"
-    clusterDirectory: "/sonatype-work/clm-cluster"
-    database:
-      type: "postgresql"
-      # Pickup database settings from environment variables
-      hostname: ${NXIQ_DATABASE_HOSTNAME}
-      port: ${NXIQ_DATABASE_PORT}
-      name: ${NXIQ_DATABASE_NAME}
-      username: ${NXIQ_DATABASE_USERNAME}
-      password: ${NXIQ_DATABASE_PASSWORD}
-      ## optional key-value pairs to be appended to the database connection URL
-      #parameters: 
-        #example-param-key-name: example-param-value
-    # Pickup product license path from an environment variable
-    licenseFile: ${NXIQ_LICENSE_FILE}
+    #
+    # NOTE: The indentation in this file is crucial for proper processing. Please keep the existing indentation when editing it.
+    #
+    # Data Service URL
+    hdsUrl: ${HDS_URL}
+
+    # Directory for data files.
+    sonatypeWork: /var/opt/sonatype/iq-server
+    clusterDirectory: "/var/opt/sonatype/clm-cluster"
+    # Path to a license file to automatically install if unlicensed.
+    licenseFile: /opt/sonatype/iq-server/etc/2024-sonatype-internal-rm-lc-fwv1-fwfav1-sbom-dev-100apps-100rm_users-1000lc_users-100fw_users-1000max_sboms.lic
+
+    # Allow external hyperlinks - banner shown if set to false
+    externalHyperlinksAllowed: false
+
+    # Hour of the day(0-23) to schedule Policy Monitoring execution. The default is midnight.
+    #policyMonitoringHour: 0
+
+    # If true, allows anonymous policy evaluation from client tooling (e.g. CLI, CI, Maven).
+    # If false, forces authentication and disallows anonymous access.
+    # Defaults to false for security.
+    #anonymousClientAccessAllowed: false
+
+    # Enables/disables cross-site request forgery protection. Defaults to true for increased security.
+    #csrfProtection: true
+
+    # A custom fragment to add to the "user-agent" for HTTP calls
+    #userAgentSuffix: "example fragment"
+
+    # HTTP-specific options.
     server:
+      # The context path for the application. Note that this must have a leading slash.
       applicationContextPath: /
+
       applicationConnectors:
         - type: http
-          port: 8070
+
+          # The port on which the HTTP server listens for service requests.
+          # Because Java cannot drop privileges in a POSIX system, these
+          # ports cannot be in the range 1-1024. A port value of 0 will
+          # make the OS use an arbitrary unused port.
+          port: 8443
+
+          # The hostname of the interface to which the application HTTP server socket
+          # will be bound. If omitted, the socket will listen on all
+          # interfaces.
+          #bindHost: 127.0.0.1  # only bind to loopback
+
+          # For SSL uncomment these and change type: http to type: https above
+          # keyStorePath: /path/to/your/keystore/file
+          # keyStorePassword: yourpassword
+
       adminContextPath: /
+
       adminConnectors:
         - type: http
+
+          # The port on which the HTTP server listens for administrative
+          # requests. Subject to the same limitations as "port".
           port: 8071
+
+          # The hostname of the interface to which the admin HTTP server socket
+          # will be bound. If omitted, the socket will listen on all
+          # interfaces.
+          #bindHost: 127.0.0.1  # only bind to loopback
+
+          # For SSL uncomment these and change type: http to type: https above
+          # keyStorePath: /path/to/your/keystore/file
+          # keyStorePassword: yourpassword
+
+      # HTTP request log settings.
       requestLog:
+
         appenders:
-          - type: console
-            logFormat: "%clientHost %l %user [%date] \"%requestURL\" %statusCode %bytesSent %elapsedTime \"%header{User-Agent}\""
+
+            # Settings for logging to a file.
           - type: file
-            currentLogFilename: "/var/log/nexus-iq-server/request.log"
+
+            # The file to which current statements will be logged.
+            currentLogFilename: /var/log/iq-server/request.log
+
             logFormat: "%clientHost %l %user [%date] \"%requestURL\" %statusCode %bytesSent %elapsedTime \"%header{User-Agent}\""
-            archivedLogFilenamePattern: "/var/log/nexus-iq-server/request-%d.log.gz"
-            archivedFileCount: 50
+
+            # When the log file rotates, the archived log will be renamed to this and gzipped. The
+            # %d is replaced with the previous day (yyyy-MM-dd). Custom rolling windows can be created
+            # by passing a SimpleDateFormat-compatible format as an argument: "%d{yyyy-MM-dd-hh}".
+            archivedLogFilenamePattern: /var/log/iq-server/request-%d.log.gz
+
+            # The number of archived files to keep.
+            archivedFileCount: 10
+
+    # Notification JIRA settings.
+    # Note that any user of the Nexus IQ Server will have access to see all projects and applicable issue types available
+    # to the configured JIRA account. More details available in the Nexus IQ Server documentation. If enabled, ensure that
+    # the baseUrl configuration setting is also enabled and correct, because generated tickets contain links to the server.
+    #jira:
+      # The JIRA server address
+      #url: "https://127.0.0.1"
+
+      # The username used to connect to the JIRA server
+      #username: "exampleuser"
+
+      # The password used to connect to the JIRA server
+      #password: "examplepassword"
+
+        # Any JIRA project issue type required fields without default values defined in JIRA must have their initial
+        # field values defined here in order for that project and issue type to be available for policy notifications
+        #customFields:
+        # Example 'user' type system field
+        #reporter:
+        #  name: "username"
+
+        # Example 'array' type system field
+        #labels:
+        #  - test
+        #  - bug
+
+        # Example 'version' type custom field
+        #customfield_12001:
+        #  name: "Example"
+
+        # Example 'option' type custom field
+        #customfield_10050:
+        #  value: "P1"
+
+        # Example 'number' type custom field
+        #customfield_13001: 10
+
+        # Example 'datetime' type custom field
+        #customfield_14000: "2016-11-01"
+
+    # Configures reverse proxy authentication for the web UI.
+    #reverseProxyAuthentication:
+
+        # Enables/disables authentication via a reverse proxy. Once the reverse proxy has authenticated a user's identity,
+        # it is expected to forward the username to the CLM server via the HTTP header configured below. The CLM server
+        # will then consider the user logged in without further password prompt.
+        #
+        # WARNING: If improperly configured, this feature poses a security vulnerability. To guard against authentication
+        #   bypass it is crucial that all HTTP access to the CLM server is proxied such that the designated username header
+        #   is only settable by the reverse proxy that performs authentication and cannot be forged by end users themselves.
+        #
+        #enabled: false
+
+        # The name of the HTTP request header that carries the username of an authenticated user.
+        #usernameHeader: "REMOTE_USER"
+
+        # For backwards compatibility of client requests - skips CSRF protection when using RUT
+        #csrfProtectionDisabled: false
+
+        # The service URL that will be redirected to when a user requests logout.
+        #logoutUrl: http://localhost/logout/index.html
+
+    # Logging settings.
     logging:
-      level: DEBUG
+
+      # The default level of all loggers. Can be OFF, ERROR, WARN, INFO, DEBUG, TRACE, or ALL.
+      level: INFO
+
+      # Logger-specific levels.
       loggers:
         "com.sonatype.insight.scan": INFO
         "eu.medsea.mimeutil.MimeUtil2": INFO
         "org.apache.http": INFO
         "org.apache.http.wire": ERROR
-        "org.apache.shiro.web.filter.authc.BasicHttpAuthenticationFilter": INFO
+        "org.apache.shiro.web.filter.authc.BasicHttpAuthenticationFilter": INFO   # WARNING: This reveals credentials at DEBUG level
         "org.eclipse.birt.report.engine.layout.pdf.font.FontConfigReader": WARN
         "org.eclipse.jetty": INFO
         "org.postgresql.jdbc.PgConnection": INFO
@@ -182,31 +308,84 @@ iq_server:
         "com.networknt.schema": OFF
         "com.sonatype.insight.audit":
           appenders:
-            - type: console
-            - type: file
-              currentLogFilename: "/var/log/nexus-iq-server/audit.log"
-              archivedLogFilenamePattern: "/var/log/nexus-iq-server/audit-%d.log.gz"
-              archivedFileCount: 50
-        "com.sonatype.insight.policy.violation":
-          appenders:
-            - type: console
-            - type: file
-              currentLogFilename: "/var/log/nexus-iq-server/policy-violation.log"
-              archivedLogFilenamePattern: "/var/log/nexus-iq-server/policy-violation-%d.log.gz"
-              archivedFileCount: 50
+          - type: file
+            # The file to which audit statements will be logged.
+            currentLogFilename: /var/log/iq-server/audit.log
+            # When the audit log file rotates, the archived audit log will be renamed to this and gzipped. The
+            # %d is replaced with the previous day (yyyy-MM-dd). Custom rolling windows can be created
+            # by passing a SimpleDateFormat-compatible format as an argument: "%d{yyyy-MM-dd-hh}".
+            #
+            # If archive is true, this must be specified.
+            archivedLogFilenamePattern: /var/log/iq-server/audit-%d.log.gz
+            # The number of archived audit log files to keep.
+            archivedFileCount: 14
+        #"com.sonatype.insight.policy.violation":
+          #appenders:
+            #- type: file
+              # The file to which policy violations will be logged.
+              #currentLogFilename: ./log/policy-violation.log
+              # When the policy violation log file rotates, the archived policy violation log will be renamed to this
+              # and gzipped. The %d is replaced with the previous day (yyyy-MM-dd). Custom rolling windows can be created
+              # by passing a SimpleDateFormat-compatible format as an argument: "%d{yyyy-MM-dd-hh}".
+              #
+              # If archive is true, this must be specified.
+              #archivedLogFilenamePattern: ./log/policy-violation-%d.log.gz
+              # The number of archived policy violation log files to keep.
+              #archivedFileCount: 5
+
       appenders:
+
+          # Settings for logging to stdout.
         - type: console
-          threshold: ALL
+
+          # Do not display log statements below this threshold to stdout.
+          threshold: INFO
+
           logFormat: "%d{'yyyy-MM-dd HH:mm:ss,SSSZ'} %level [%thread] %X{username} %logger - %msg%n"
+
+          # Settings for logging to a file.
         - type: file
+
+          # Do not write log statements below this threshold to the file.
           threshold: ALL
+
           logFormat: "%d{'yyyy-MM-dd HH:mm:ss,SSSZ'} %level [%thread] %X{username} %logger - %msg%n"
-          currentLogFilename: "/var/log/nexus-iq-server/clm-server.log"
-          archivedLogFilenamePattern: "/var/log/nexus-iq-server/clm-server-%d.log.gz"
-          archivedFileCount: 50
+
+          # The file to which current statements will be logged.
+          currentLogFilename: /var/log/iq-server/iq-server.log
+
+          # When the log file rotates, the archived log will be renamed to this and gzipped. The
+          # %d is replaced with the previous day (yyyy-MM-dd). Custom rolling windows can be created
+          # by passing a SimpleDateFormat-compatible format as an argument: "%d{yyyy-MM-dd-hh}".
+          #
+          # If archive is true, this must be specified.
+          archivedLogFilenamePattern: /var/log/iq-server/iq-server-%d.log.gz
+
+          # The number of archived files to keep.
+          archivedFileCount: 14
+
+    # Passphrase used to encrypt the Webhook Secret Keys
+    #webhookSecretPassphrase: "somePassPhrase"
+
+    #eventBus:
+      # Configures the number of threads used for the EventBus
+      # Defaults to 500 if not provided.
+      # maxPoolSize: 500
+
+    # Sample data is created for new installs.
     createSampleData: true
+
+    database:
+        type: postgresql
+        hostname: ${NXIQ_DATABASE_HOSTNAME}
+        port: ${NXIQ_DATABASE_PORT}
+        name: ${NXIQ_DATABASE_NAME}
+        username: ${NXIQ_DATABASE_USERNAME}
+        password: ${NXIQ_DATABASE_PASSWORD}
+
   # Specify a custom 'chown' command to modify ownership of directories.
-  pvOwnershipOverride:  "chown -R 1000:1000 /sonatype-work/clm-cluster"
+  # TODO: Set this to empty to prevent InitContainer from running
+  pvOwnershipOverride: #  "chown -R 1000:1000 /var/opt/sonatype/iq-server"
   pvOwnershipOverrideResources:
     requests:
       cpu: #150m
@@ -250,7 +429,7 @@ global:
 # Horizontal pod auto-scaler 
 hpa:
   enabled: false 
-  minReplicas: 2
+  minReplicas: 1
   maxReplicas: 4
   resources:
     cpu: 
@@ -264,8 +443,8 @@ hpa:
 
 # Load balancer
 ingress:
-  enabled: false
-  ingressClassName: nginx
+  enabled: true
+  ingressClassName: alb
   pathType: Prefix
   annotations:
   # Optional parameter to set the application hostname

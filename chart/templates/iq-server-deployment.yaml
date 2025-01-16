@@ -87,7 +87,7 @@ spec:
             - mountPath: "/opt/sonatype/nexus-iq-server/.ssh"
               name: {{ .Release.Name }}-iq-server-pod-volume
               subPath: .ssh
-            - mountPath: "/etc/nexus-iq-server"
+            - mountPath: "/opt/sonatype/iq-server/etc"
               name: {{ .Release.Name }}-iq-server-pod-config-volume
             {{- if or (.Values.secret.arn) (.Values.secret.license.arn) (.Values.secret.rds.arn) (.Values.secret.sshPrivateKey.arn) (.Values.secret.sshKnownHosts.arn) }}
             - mountPath: "/iq-secrets"
@@ -174,38 +174,38 @@ spec:
                 {{- end }}
               {{- end }}
             {{- end }}
-          readinessProbe:
-            initialDelaySeconds: {{ .Values.iq_server.readinessProbe.initialDelaySeconds }}
-            periodSeconds: {{ .Values.iq_server.readinessProbe.periodSeconds }}
-            timeoutSeconds: {{ .Values.iq_server.readinessProbe.timeoutSeconds }}
-            failureThreshold: {{ .Values.iq_server.readinessProbe.failureThreshold }}
-            exec:
-              command:
-                - /bin/sh
-                - -c
-                - |
-                  {{- if .Values.iq_server.config.server.adminConnectors }}
-                    {{- with index .Values.iq_server.config.server.adminConnectors 0 }}
-                      curl -If {{ .type }}://localhost:{{ .port }}/{{- if include "nexus-iq-server-ha.trimSpaceAndForwardSlashes" $.Values.iq_server.config.server.adminContextPath }}{{ include "nexus-iq-server-ha.trimSpaceAndForwardSlashes" $.Values.iq_server.config.server.adminContextPath }}/{{- end }}healthcheck/database &&
-                      curl -If {{ .type }}://localhost:{{ .port }}/{{- if include "nexus-iq-server-ha.trimSpaceAndForwardSlashes" $.Values.iq_server.config.server.adminContextPath }}{{ include "nexus-iq-server-ha.trimSpaceAndForwardSlashes" $.Values.iq_server.config.server.adminContextPath }}/{{- end }}healthcheck/clusterDirectory &&
-                      curl -If {{ .type }}://localhost:{{ .port }}/{{- if include "nexus-iq-server-ha.trimSpaceAndForwardSlashes" $.Values.iq_server.config.server.adminContextPath }}{{ include "nexus-iq-server-ha.trimSpaceAndForwardSlashes" $.Values.iq_server.config.server.adminContextPath }}/{{- end }}healthcheck/workDirectory
-                    {{- end }}
-                  {{- end }}
-          livenessProbe:
-            initialDelaySeconds: {{ .Values.iq_server.livenessProbe.initialDelaySeconds }}
-            periodSeconds: {{ .Values.iq_server.livenessProbe.periodSeconds }}
-            timeoutSeconds: {{ .Values.iq_server.livenessProbe.timeoutSeconds }}
-            failureThreshold: {{ .Values.iq_server.livenessProbe.failureThreshold }}
-            exec:
-              command:
-                - /bin/sh
-                - -c
-                - |
-                  {{- if .Values.iq_server.config.server.adminConnectors }}
-                    {{- with index .Values.iq_server.config.server.adminConnectors 0 }}
-                      curl -If {{ .type }}://localhost:{{ .port }}/{{- if include "nexus-iq-server-ha.trimSpaceAndForwardSlashes" $.Values.iq_server.config.server.adminContextPath }}{{ include "nexus-iq-server-ha.trimSpaceAndForwardSlashes" $.Values.iq_server.config.server.adminContextPath }}/{{- end }}healthcheck/threadDeadlock
-                    {{- end }}
-                  {{- end }}
+          # readinessProbe:
+          #   initialDelaySeconds: {{ .Values.iq_server.readinessProbe.initialDelaySeconds }}
+          #   periodSeconds: {{ .Values.iq_server.readinessProbe.periodSeconds }}
+          #   timeoutSeconds: {{ .Values.iq_server.readinessProbe.timeoutSeconds }}
+          #   failureThreshold: {{ .Values.iq_server.readinessProbe.failureThreshold }}
+          #   exec:
+          #     command:
+          #       - /bin/sh
+          #       - -c
+          #       - |
+          #         {{- if .Values.iq_server.config.server.adminConnectors }}
+          #           {{- with index .Values.iq_server.config.server.adminConnectors 0 }}
+          #             curl -If {{ .type }}://localhost:{{ .port }}/{{- if include "nexus-iq-server-ha.trimSpaceAndForwardSlashes" $.Values.iq_server.config.server.adminContextPath }}{{ include "nexus-iq-server-ha.trimSpaceAndForwardSlashes" $.Values.iq_server.config.server.adminContextPath }}/{{- end }}healthcheck/database &&
+          #             curl -If {{ .type }}://localhost:{{ .port }}/{{- if include "nexus-iq-server-ha.trimSpaceAndForwardSlashes" $.Values.iq_server.config.server.adminContextPath }}{{ include "nexus-iq-server-ha.trimSpaceAndForwardSlashes" $.Values.iq_server.config.server.adminContextPath }}/{{- end }}healthcheck/clusterDirectory &&
+          #             curl -If {{ .type }}://localhost:{{ .port }}/{{- if include "nexus-iq-server-ha.trimSpaceAndForwardSlashes" $.Values.iq_server.config.server.adminContextPath }}{{ include "nexus-iq-server-ha.trimSpaceAndForwardSlashes" $.Values.iq_server.config.server.adminContextPath }}/{{- end }}healthcheck/workDirectory
+          #           {{- end }}
+          #         {{- end }}
+          # livenessProbe:
+          #   initialDelaySeconds: {{ .Values.iq_server.livenessProbe.initialDelaySeconds }}
+          #   periodSeconds: {{ .Values.iq_server.livenessProbe.periodSeconds }}
+          #   timeoutSeconds: {{ .Values.iq_server.livenessProbe.timeoutSeconds }}
+          #   failureThreshold: {{ .Values.iq_server.livenessProbe.failureThreshold }}
+          #   exec:
+          #     command:
+          #       - /bin/sh
+          #       - -c
+          #       - |
+          #         {{- if .Values.iq_server.config.server.adminConnectors }}
+          #           {{- with index .Values.iq_server.config.server.adminConnectors 0 }}
+          #             curl -If {{ .type }}://localhost:{{ .port }}/{{- if include "nexus-iq-server-ha.trimSpaceAndForwardSlashes" $.Values.iq_server.config.server.adminContextPath }}{{ include "nexus-iq-server-ha.trimSpaceAndForwardSlashes" $.Values.iq_server.config.server.adminContextPath }}/{{- end }}healthcheck/threadDeadlock
+          #           {{- end }}
+          #         {{- end }}
         {{- if and (.Values.fluentd.enabled) (.Values.fluentd.sidecar_forwarder.enabled) }}
         - name: {{ .Release.Name }}-fluentd-container
           image: {{ .Values.fluentd.image.repository }}:{{ .Values.fluentd.image.tag }}
