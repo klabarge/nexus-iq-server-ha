@@ -5,7 +5,7 @@
 # Nexus IQ Server HA configuration
 iq_server:
   # Sonatype official public image
-  imageRegistry: 843756893034.dkr.ecr.us-east-2.amazonaws.com/sage # Container image registry, if not specified the Docker public registry will be used
+  imageRegistry: # Container image registry, if not specified the Docker public registry will be used
   image: "iq-server"
   tag: "latest"
   imagePullPolicy: "IfNotPresent"
@@ -60,7 +60,7 @@ iq_server:
     name:
     username:
     # One of these can be set to hold the database password
-    password:
+    password: # Plaintext password
     # The name of an existing Kubernetes secret containing a password key with a value of the base64 encoding of your
     # password
     passwordSecret:
@@ -90,9 +90,9 @@ iq_server:
     # Whichever one has all required parameters set will be used
     # If this applies to multiple, then one will be selected in the preference order of csi then nfs
     csi:
-      driver: "ebs.csi.aws.com"
+      driver: #"ebs.csi.aws.com"
       fsType: ext4
-      volumeHandle: vol-016c741d939363e06
+      volumeHandle:
     nfs:
       server:
       path: "/"
@@ -143,7 +143,7 @@ iq_server:
     sonatypeWork: /var/opt/sonatype/iq-server
     clusterDirectory: "/var/opt/sonatype/clm-cluster"
     # Path to a license file to automatically install if unlicensed.
-    licenseFile: /opt/sonatype/iq-server/etc/2024-sonatype-internal-rm-lc-fwv1-fwfav1-sbom-dev-100apps-100rm_users-1000lc_users-100fw_users-1000max_sboms.lic
+    licenseFile:
 
     # Allow external hyperlinks - banner shown if set to false
     externalHyperlinksAllowed: false
@@ -427,7 +427,7 @@ global:
 # Horizontal pod auto-scaler 
 hpa:
   enabled: false 
-  minReplicas: 1
+  minReplicas: 2
   maxReplicas: 4
   resources:
     cpu: 
@@ -442,7 +442,7 @@ hpa:
 # Load balancer
 ingress:
   enabled: true
-  ingressClassName: alb
+  ingressClassName: alb #nginx
   pathType: Prefix
   annotations:
   # Optional parameter to set the application hostname
