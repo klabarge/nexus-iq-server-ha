@@ -156,7 +156,7 @@ spec:
                   name: {{- if .Values.secret.rds.arn }} "{{ .Release.Name }}-aws-rds-secret"{{- else if .Values.iq_server.database.passwordSecret }} {{ .Values.iq_server.database.passwordSecret | quote }}{{- else }} "{{ .Release.Name }}-iq-server-database-password-secret"{{- end }}
                   key: "password"
             - name: NXIQ_DATABASE_MIGRATION
-              value: "false"
+              value: "true"
             {{- if .Values.iq_server.javaOpts }}
             - name: JAVA_OPTS
               value: {{ .Values.iq_server.javaOpts }}
