@@ -58,9 +58,9 @@ iq_server:
     hostname:
     port: 5432
     name:
-    username: "postgres"
+    username:
     # One of these can be set to hold the database password
-    password: # Plaintext password
+    password:
     # The name of an existing Kubernetes secret containing a password key with a value of the base64 encoding of your
     # password
     passwordSecret:
@@ -84,7 +84,6 @@ iq_server:
     # Storage class for PV/PVC (empty disables dynamic provisioning)
     storageClassName: ""
     # Access mode for PV/PVC (should correspond to the volume type)
-    #TODO: changed to RWO for EBS temporarily
     accessModes:
       - ReadWriteOnce #ReadWriteMany
     # Volume type
@@ -384,8 +383,7 @@ iq_server:
         password: ${NXIQ_DATABASE_PASSWORD}
 
   # Specify a custom 'chown' command to modify ownership of directories.
-  # TODO: Set this to empty to prevent InitContainer from running
-  pvOwnershipOverride: #  "chown -R 1000:1000 /var/opt/sonatype/iq-server"
+  pvOwnershipOverride: "chown -R 999:999 /var/opt/sonatype/clm-cluster/"
   pvOwnershipOverrideResources:
     requests:
       cpu: #150m
@@ -555,7 +553,7 @@ fluentd:
       # Get the request log
       - source:
           $type: tail
-          path: /var/log/nexus-iq-server/request.log
+          path: /var/log/iq-server/request.log
           pos_file: /opt/bitnami/fluentd/logs/buffers/request.pos
           tag: iq_server.request
           read_from_head: true
@@ -568,7 +566,7 @@ fluentd:
       # Get the audit log
       - source:
           $type: tail
-          path: /var/log/nexus-iq-server/audit.log
+          path: /var/log/iq-server/audit.log
           pos_file: /opt/bitnami/fluentd/logs/buffers/audit.pos
           tag: iq_server.audit
           read_from_head: true
@@ -581,7 +579,7 @@ fluentd:
       # Get the policy violation log
       - source:
           $type: tail
-          path: /var/log/nexus-iq-server/policy-violation.log
+          path: /var/log/iq-server/policy-violation.log
           pos_file: /opt/bitnami/fluentd/logs/buffers/policy-violation.pos
           tag: iq_server.policy-violation
           read_from_head: true
@@ -594,7 +592,7 @@ fluentd:
       # Get the server log
       - source:
           $type: tail
-          path: /var/log/nexus-iq-server/clm-server.log
+          path: /var/log/iq-server/iq-server.log
           pos_file: /opt/bitnami/fluentd/logs/buffers/clm-server.pos
           tag: iq_server.clm-server
           read_from_head: true
@@ -607,7 +605,7 @@ fluentd:
       # Get the stderr log
       - source:
           $type: tail
-          path: /var/log/nexus-iq-server/stderr.log
+          path: /var/log/iq-server/stderr.log
           pos_file: /opt/bitnami/fluentd/logs/buffers/stderr.pos
           tag: iq_server.stderr
           read_from_head: true
