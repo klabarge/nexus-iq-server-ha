@@ -1,108 +1,110 @@
-# apiVersion: batch/v1
-# kind: Job
-# metadata:
-#   name: {{ .Release.Name }}-migrate-db
-#   {{- with .Values.iq_server_jobs.migrationJobAnnotations }}
-#   annotations:
-#     {{- toYaml . | nindent 4 }}
-#   {{- end }}
-# spec:
-#   completions: 1
-#   parallelism: 1
-#   ttlSecondsAfterFinished: 0
-#   template:
-#     spec:
-#       serviceAccountName: {{ .Values.iq_server.serviceAccountName }}
-#       volumes:
-#         - name: {{ .Release.Name }}-iq-server-pod-config-volume
-#           configMap:
-#             name: {{ .Release.Name }}-iq-server-config-configmap
-#             items:
-#               - key: config
-#                 path: config.yml
-#         {{- if .Values.secret.rds.arn }}
-#         - name: {{ .Release.Name }}-iq-server-secrets-volume
-#           csi:
-#             driver: secrets-store.csi.k8s.io
-#             readOnly: true
-#             volumeAttributes:
-#               secretProviderClass: {{ .Release.Name }}-aws-secret-provider
-#               fsType: ext4
-#         {{- end }}
-#       containers:
-#         - name: {{ .Release.Name }}-iq-server-container
-#           image: {{ include "nexus-iq-server-ha.iqServerImage" . }}
-#           imagePullPolicy: {{ .Values.iq_server.imagePullPolicy }}
-#           resources:
-#             requests:
-#               {{- if .Values.iq_server_jobs.resources.requests.cpu }}
-#               cpu: {{ .Values.iq_server_jobs.resources.requests.cpu }}
-#               {{- end }}
-#               {{- if .Values.iq_server_jobs.resources.requests.memory }}
-#               memory: {{ .Values.iq_server_jobs.resources.requests.memory }}
-#               {{- end }}
-#             limits:
-#               {{- if .Values.iq_server_jobs.resources.limits.cpu }}
-#               cpu: {{ .Values.iq_server_jobs.resources.limits.cpu }}
-#               {{- end }}
-#               {{- if .Values.iq_server_jobs.resources.limits.memory }}
-#               memory: {{ .Values.iq_server_jobs.resources.limits.memory }}
-#               {{- end }}
-#           volumeMounts:
-#             - mountPath: "/etc/nexus-iq-server"
-#               name: {{ .Release.Name }}-iq-server-pod-config-volume
-#             {{- if .Values.secret.rds.arn }}
-#             - mountPath: "/iq-secrets"
-#               name: {{ .Release.Name }}-iq-server-secrets-volume
-#             {{- end }}
-#           env:
-#             {{- range .Values.iq_server_jobs.env }}
-#             - name: {{ .name }}
-#               {{- if .value }}
-#               value: {{ .value | quote }}
-#               {{- else if .valueFrom }}
-#               valueFrom:
-#                 {{- if .valueFrom.secretKeyRef }}
-#                 secretKeyRef:
-#                   name: {{ .valueFrom.secretKeyRef.name }}
-#                   key: {{ .valueFrom.secretKeyRef.key }}
-#                 {{- end }}
-#               {{- end }}
-#             {{- end }}
-#             - name: NXIQ_DATABASE_HOSTNAME
-#               valueFrom:
-#                 secretKeyRef:
-#                   name: {{- if .Values.secret.rds.arn }} "{{ .Release.Name }}-aws-rds-secret"{{- else }} "{{.Release.Name }}-iq-server-database-hostname-secret"{{- end }}
-#                   key: "hostname"
-#             - name: NXIQ_DATABASE_PORT
-#               valueFrom:
-#                 secretKeyRef:
-#                   name: {{- if .Values.secret.rds.arn }} "{{ .Release.Name }}-aws-rds-secret"{{- else }} "{{.Release.Name }}-iq-server-database-port-secret"{{- end }}
-#                   key: "port"
-#             - name: NXIQ_DATABASE_NAME
-#               valueFrom:
-#                 secretKeyRef:
-#                   name: {{- if .Values.secret.rds.arn }} "{{ .Release.Name }}-aws-rds-secret"{{- else }} "{{.Release.Name }}-iq-server-database-name-secret"{{- end }}
-#                   key: "name"
-#             - name: NXIQ_DATABASE_USERNAME
-#               valueFrom:
-#                 secretKeyRef:
-#                   name: {{- if .Values.secret.rds.arn }} "{{ .Release.Name }}-aws-rds-secret"{{- else }} "{{ .Release.Name }}-iq-server-database-username-secret"{{- end }}
-#                   key: "username"
-#             - name: NXIQ_DATABASE_PASSWORD
-#               valueFrom:
-#                 secretKeyRef:
-#                   name: {{- if .Values.secret.rds.arn }} "{{ .Release.Name }}-aws-rds-secret"{{- else if .Values.iq_server.database.passwordSecret }} {{ .Values.iq_server.database.passwordSecret | quote }}{{- else }} "{{ .Release.Name }}-iq-server-database-password-secret"{{- end }}
-#                   key: "password"
-#           command:
-#             - /bin/sh
-#             - -c
-#             - "/opt/sonatype/nexus-iq-server/bin/nexus-iq-server migrate-db /etc/nexus-iq-server/config.yml"
-#           securityContext:
-#             runAsUser: 1000
-#             runAsGroup: 1000
-#       restartPolicy: OnFailure
-# ---
+{{- if not .Values.iq_server.config.hdsUrl }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-migrate-db
+  {{- with .Values.iq_server_jobs.migrationJobAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  completions: 1
+  parallelism: 1
+  ttlSecondsAfterFinished: 0
+  template:
+    spec:
+      serviceAccountName: {{ .Values.iq_server.serviceAccountName }}
+      volumes:
+        - name: {{ .Release.Name }}-iq-server-pod-config-volume
+          configMap:
+            name: {{ .Release.Name }}-iq-server-config-configmap
+            items:
+              - key: config
+                path: config.yml
+        {{- if .Values.secret.rds.arn }}
+        - name: {{ .Release.Name }}-iq-server-secrets-volume
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: {{ .Release.Name }}-aws-secret-provider
+              fsType: ext4
+        {{- end }}
+      containers:
+        - name: {{ .Release.Name }}-iq-server-container
+          image: {{ include "nexus-iq-server-ha.iqServerImage" . }}
+          imagePullPolicy: {{ .Values.iq_server.imagePullPolicy }}
+          resources:
+            requests:
+              {{- if .Values.iq_server_jobs.resources.requests.cpu }}
+              cpu: {{ .Values.iq_server_jobs.resources.requests.cpu }}
+              {{- end }}
+              {{- if .Values.iq_server_jobs.resources.requests.memory }}
+              memory: {{ .Values.iq_server_jobs.resources.requests.memory }}
+              {{- end }}
+            limits:
+              {{- if .Values.iq_server_jobs.resources.limits.cpu }}
+              cpu: {{ .Values.iq_server_jobs.resources.limits.cpu }}
+              {{- end }}
+              {{- if .Values.iq_server_jobs.resources.limits.memory }}
+              memory: {{ .Values.iq_server_jobs.resources.limits.memory }}
+              {{- end }}
+          volumeMounts:
+            - mountPath: "/etc/nexus-iq-server"
+              name: {{ .Release.Name }}-iq-server-pod-config-volume
+            {{- if .Values.secret.rds.arn }}
+            - mountPath: "/iq-secrets"
+              name: {{ .Release.Name }}-iq-server-secrets-volume
+            {{- end }}
+          env:
+            {{- range .Values.iq_server_jobs.env }}
+            - name: {{ .name }}
+              {{- if .value }}
+              value: {{ .value | quote }}
+              {{- else if .valueFrom }}
+              valueFrom:
+                {{- if .valueFrom.secretKeyRef }}
+                secretKeyRef:
+                  name: {{ .valueFrom.secretKeyRef.name }}
+                  key: {{ .valueFrom.secretKeyRef.key }}
+                {{- end }}
+              {{- end }}
+            {{- end }}
+            - name: NXIQ_DATABASE_HOSTNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{- if .Values.secret.rds.arn }} "{{ .Release.Name }}-aws-rds-secret"{{- else }} "{{.Release.Name }}-iq-server-database-hostname-secret"{{- end }}
+                  key: "hostname"
+            - name: NXIQ_DATABASE_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{- if .Values.secret.rds.arn }} "{{ .Release.Name }}-aws-rds-secret"{{- else }} "{{.Release.Name }}-iq-server-database-port-secret"{{- end }}
+                  key: "port"
+            - name: NXIQ_DATABASE_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{- if .Values.secret.rds.arn }} "{{ .Release.Name }}-aws-rds-secret"{{- else }} "{{.Release.Name }}-iq-server-database-name-secret"{{- end }}
+                  key: "name"
+            - name: NXIQ_DATABASE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{- if .Values.secret.rds.arn }} "{{ .Release.Name }}-aws-rds-secret"{{- else }} "{{ .Release.Name }}-iq-server-database-username-secret"{{- end }}
+                  key: "username"
+            - name: NXIQ_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{- if .Values.secret.rds.arn }} "{{ .Release.Name }}-aws-rds-secret"{{- else if .Values.iq_server.database.passwordSecret }} {{ .Values.iq_server.database.passwordSecret | quote }}{{- else }} "{{ .Release.Name }}-iq-server-database-password-secret"{{- end }}
+                  key: "password"
+          command:
+            - /bin/sh
+            - -c
+            - "/opt/sonatype/nexus-iq-server/bin/nexus-iq-server migrate-db /etc/nexus-iq-server/config.yml"
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+      restartPolicy: OnFailure
+{{- end }}
+---
 {{- if .Values.iq_server.useGitSsh }}
 apiVersion: batch/v1
 kind: Job
