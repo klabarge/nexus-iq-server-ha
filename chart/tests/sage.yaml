@@ -7,7 +7,7 @@ iq_server:
   # Sonatype official public image
   imageRegistry: # Container image registry, if not specified the Docker public registry will be used
   image: "iq-server"
-  tag: "1.18"
+  tag: "latest"
   imagePullPolicy: "IfNotPresent"
 
   # We usually recommend not to specify default resources and to leave this as a conscious choice for the user.
@@ -58,7 +58,7 @@ iq_server:
     hostname:
     port: 5432
     name:
-    username: "postgres"
+    username:
     # One of these can be set to hold the database password
     password: # Plaintext password
     # The name of an existing Kubernetes secret containing a password key with a value of the base64 encoding of your
@@ -85,13 +85,13 @@ iq_server:
     storageClassName: ""
     # Access mode for PV/PVC (should correspond to the volume type)
     accessModes:
-      - ReadWriteMany
+      - ReadWriteOnce #ReadWriteMany
     # Volume type
     # Whichever one has all required parameters set will be used
     # If this applies to multiple, then one will be selected in the preference order of csi then nfs
     csi:
-      driver:
-      fsType:
+      driver: #"ebs.csi.aws.com"
+      fsType: ext4
       volumeHandle:
     nfs:
       server:
@@ -100,7 +100,7 @@ iq_server:
   # The service account to use to run the pods/job
   serviceAccountName: "default"
   # How the service is exposed
-  serviceType: "ClusterIP"
+  serviceType: LoadBalancer #NodePort #"LoadBalancer" #"ClusterIP"
   # Annotations for the application service
   applicationServiceAnnotations:
   # Annotations for the admin service
@@ -109,7 +109,7 @@ iq_server:
   podAnnotations:
 
   # Number of pods to run
-  replicas: 2
+  replicas: 1
   
   # One of these can be set to hold the initial admin password
   initialAdminPassword: "admin123" # Plaintext password
@@ -441,8 +441,8 @@ hpa:
 
 # Load balancer
 ingress:
-  enabled: false
-  ingressClassName: nginx
+  enabled: true
+  ingressClassName: alb #nginx
   pathType: Prefix
   annotations:
   # Optional parameter to set the application hostname
