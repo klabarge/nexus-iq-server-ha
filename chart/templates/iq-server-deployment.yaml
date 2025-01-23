@@ -87,7 +87,7 @@ spec:
             - mountPath: "/opt/sonatype/nexus-iq-server/.ssh"
               name: {{ .Release.Name }}-iq-server-pod-volume
               subPath: .ssh
-            - mountPath: "/etc/nexus-iq-server"
+            - mountPath: "/opt/sonatype/iq-server/etc"
               name: {{ .Release.Name }}-iq-server-pod-config-volume
             {{- if or (.Values.secret.arn) (.Values.secret.license.arn) (.Values.secret.rds.arn) (.Values.secret.sshPrivateKey.arn) (.Values.secret.sshKnownHosts.arn) }}
             - mountPath: "/iq-secrets"
@@ -100,7 +100,7 @@ spec:
               readOnly: true
             {{- end }}
             {{- if and (.Values.fluentd.enabled) (.Values.fluentd.sidecar_forwarder.enabled) }}
-            - mountPath: "/var/log/nexus-iq-server"
+            - mountPath: "/var/log/iq-server"
               name: {{ .Release.Name }}-iq-server-pod-logs
             {{- end }}
           env:
@@ -156,7 +156,7 @@ spec:
                   name: {{- if .Values.secret.rds.arn }} "{{ .Release.Name }}-aws-rds-secret"{{- else if .Values.iq_server.database.passwordSecret }} {{ .Values.iq_server.database.passwordSecret | quote }}{{- else }} "{{ .Release.Name }}-iq-server-database-password-secret"{{- end }}
                   key: "password"
             - name: NXIQ_DATABASE_MIGRATION
-              value: "false"
+              value: "true"
             {{- if .Values.iq_server.javaOpts }}
             - name: JAVA_OPTS
               value: {{ .Values.iq_server.javaOpts }}
@@ -229,7 +229,7 @@ spec:
             - name: {{ .Release.Name }}-fluentd-pod-config-volume
               mountPath: "/opt/bitnami/fluentd/conf"
             - name: {{ .Release.Name }}-iq-server-pod-logs
-              mountPath: "/var/log/nexus-iq-server"
+              mountPath: "/var/log/iq-server"
             - name: {{ .Release.Name }}-fluentd-empty-dir
               mountPath: /opt/bitnami/fluentd/logs/buffers
           env:

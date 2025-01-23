@@ -1,3 +1,4 @@
+{{- if not .Values.iq_server.config.hdsUrl }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -102,6 +103,7 @@ spec:
             runAsUser: 1000
             runAsGroup: 1000
       restartPolicy: OnFailure
+{{- end }}
 ---
 {{- if .Values.iq_server.useGitSsh }}
 apiVersion: batch/v1
